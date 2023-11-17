@@ -15,6 +15,13 @@ namespace BSMapDiffGenerator
 {
     public class MapDiffGenerator
     {
+        private static int MaxDegreesOfParallelism = 4;
+
+        public MapDiffGenerator(int? maxDegreesOfParallelism = null)
+        {
+            if (maxDegreesOfParallelism != null) MaxDegreesOfParallelism = maxDegreesOfParallelism.Value;
+        }
+
         public static MapDiff GenerateFullDiff()
         {
             return new(new(), new());
@@ -54,7 +61,7 @@ namespace BSMapDiffGenerator
             List<(BeatmapObject obj, bool stillExists)> oldObjsChecked = oldObjects.ConvertAll(obj => (obj, false));
 
             // checking if new notes have a match in old notes
-            Parallel.ForEach(newObjects, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, obj =>
+            Parallel.ForEach(newObjects, new ParallelOptions { MaxDegreeOfParallelism = MaxDegreesOfParallelism }, obj =>
             {
                 var matches = CheckMatches(obj, oldObjects);
 
@@ -81,7 +88,7 @@ namespace BSMapDiffGenerator
             });
 
             // adding removed notes if nothing is on their beat
-            Parallel.ForEach(oldObjsChecked.Where(x => !x.stillExists), new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, obj =>
+            Parallel.ForEach(oldObjsChecked.Where(x => !x.stillExists), new ParallelOptions { MaxDegreeOfParallelism = MaxDegreesOfParallelism }, obj =>
             {
                 if (CheckMatches(obj.obj, newObjects).list.Count() > 0)
                 {
