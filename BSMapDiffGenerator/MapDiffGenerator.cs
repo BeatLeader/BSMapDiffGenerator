@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace BSMapDiffGenerator
@@ -30,11 +31,14 @@ namespace BSMapDiffGenerator
 
             diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.bpmEvents.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.bpmEvents.ConvertAll(obj => obj as BeatmapObject), CollectionType.BpmEvents));
             diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Rotations.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Rotations.ConvertAll(obj => obj as BeatmapObject), CollectionType.Rotations));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Notes.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Notes.ConvertAll(obj => obj as BeatmapObject), CollectionType.Notes));
+            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Notes.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Notes.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Notes));
+            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Notes.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Notes.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Notes));
             diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Bombs.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Bombs.ConvertAll(obj => obj as BeatmapObject), CollectionType.Bombs));
             diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Walls.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Walls.ConvertAll(obj => obj as BeatmapObject), CollectionType.Walls));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Arcs.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Arcs.ConvertAll(obj => obj as BeatmapObject), CollectionType.Arcs));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Chains.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Chains.ConvertAll(obj => obj as BeatmapObject), CollectionType.Chains));
+            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Arcs.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Arcs.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Arcs));
+            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Arcs.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Arcs.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Arcs));
+            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Chains.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Chains.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Chains));
+            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Chains.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Chains.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Chains));
             diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Lights.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Lights.ConvertAll(obj => obj as BeatmapObject), CollectionType.Lights));
             diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.colorBoostBeatmapEvents.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.colorBoostBeatmapEvents.ConvertAll(obj => obj as BeatmapObject), CollectionType.ColorBoostBeatmapEvents));
             diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.lightColorEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.lightColorEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), CollectionType.LightColorEventBoxGroups));
@@ -54,12 +58,19 @@ namespace BSMapDiffGenerator
             {
                 var matches = CheckMatches(obj, oldObjects);
 
-                if (matches.Count() > 0)
+                if (matches.list.Count() > 0)
                 {
-                    foreach (var match in matches)
+
+                    foreach (var match in matches.list)
                     {
                         int index = oldObjsChecked.FindIndex(x => !x.stillExists && match.Equals(x.obj));
                         if (index != -1) oldObjsChecked[index] = (match, true);
+                    }
+
+                    if (matches.isInexact == true)
+                    {
+                        // handling inexact matches
+                        diffEntries.Add(new DiffEntry(DiffType.Modified, obj, collectionType));
                     }
                 }
                 else
@@ -69,18 +80,58 @@ namespace BSMapDiffGenerator
                 }
             });
 
-            // adding removed notes
+            // adding removed notes if nothing is on their beat
             Parallel.ForEach(oldObjsChecked.Where(x => !x.stillExists), new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, obj =>
             {
-                diffEntries.Add(new DiffEntry(DiffType.Removed, obj.obj, collectionType));
+                if (CheckMatches(obj.obj, newObjects).list.Count() > 0)
+                {
+                    diffEntries.Add(new DiffEntry(DiffType.Modified, obj.obj, collectionType));
+                } else
+                {
+                    diffEntries.Add(new DiffEntry(DiffType.Removed, obj.obj, collectionType));
+                }
             });
 
             return diffEntries;
         }
 
-        private static List<T> CheckMatches<T>(T obj, List<T> oldObjects)
+        private static (List<BeatmapObject> list, bool? isInexact) CheckMatches(BeatmapObject obj, List<BeatmapObject> oldObjects)
         {
-            return oldObjects.Where(x => obj.Equals(x)).ToList();
+            var exactMatches = oldObjects.Where(x => obj.Equals(x)).ToList();
+
+            if (exactMatches.Count() > 0)
+            {
+                return (exactMatches, false);
+            }
+
+            if (obj is BeatmapGridObject gObj)
+            {
+                var matches = oldObjects.OfType<BeatmapGridObject>().Where(x => gObj.Beats.Equals(x.Beats)).ToList();
+
+                if (matches.Count > 0)
+                {
+                    return (matches.ConvertAll(obj => obj as BeatmapObject), true);
+                }
+                else
+                {
+                    return (matches.ConvertAll(obj => obj as BeatmapObject), null);
+                }
+            }
+            else if (obj is BpmEvent bObj)
+            {
+                var matches = oldObjects.OfType<BpmEvent>().Where(x => bObj.Beats.Equals(x.Beats)).ToList();
+
+                if (matches.Count > 0)
+                {
+                    return (matches.ConvertAll(obj => obj as BeatmapObject), true);
+                }
+                else
+                {
+                    return (matches.ConvertAll(obj => obj as BeatmapObject), null);
+                }
+            }
+
+            return (exactMatches, null);
         }
     }
 }
