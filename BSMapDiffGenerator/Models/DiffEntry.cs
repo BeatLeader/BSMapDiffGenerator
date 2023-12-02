@@ -5,19 +5,7 @@ using System.Text;
 
 namespace BSMapDiffGenerator.Models
 {
-    public class DiffEntry
-    {
-        public DiffEntry(DiffType type, BeatmapObject @object, CollectionType collectionType)
-        {
-            Type = type;
-            Object = @object;
-            CollectionType = collectionType;
-        }
-
-        public DiffType Type { get; set; }
-        public BeatmapObject Object { get; set; }
-        public CollectionType CollectionType { get; set; }
-    }
+    public readonly record struct DiffEntry(DiffType Type, BeatmapObject Object, CollectionType CollectionType);
 
     public enum DiffType
     {

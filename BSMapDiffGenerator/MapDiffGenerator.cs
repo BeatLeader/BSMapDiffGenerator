@@ -1,80 +1,56 @@
 ﻿using BSMapDiffGenerator.Models;
-using Parser.Map;
 using Parser.Map.Difficulty.V3.Base;
 using Parser.Map.Difficulty.V3.Event;
-using Parser.Map.Difficulty.V3.Event.V3;
-using Parser.Map.Difficulty.V3.Grid;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace BSMapDiffGenerator
 {
     public class MapDiffGenerator
     {
-        private static int MaxDegreesOfParallelism = 4;
+        public static MapDiff GenerateFullDiff() => throw new NotImplementedException();
 
-        public MapDiffGenerator(int? maxDegreesOfParallelism = null)
+        public static List<DiffEntry> GenerateSongInfoDiff() => throw new NotImplementedException();
+
+        public static List<DiffEntry> GenerateDifficultyDiff(DifficultyV3 newDifficulty, DifficultyV3 oldDifficulty) => [
+            .. GenerateObjectsDiff(newDifficulty.bpmEvents, oldDifficulty.bpmEvents, CollectionType.BpmEvents),
+            .. GenerateObjectsDiff(newDifficulty.Rotations, oldDifficulty.Rotations, CollectionType.Rotations),
+            .. GenerateObjectsDiff(newDifficulty.Notes.Where(x => x.Color == 0).ToList(), oldDifficulty.Notes.Where(x => x.Color == 0).ToList(), CollectionType.Notes),
+            .. GenerateObjectsDiff(newDifficulty.Notes.Where(x => x.Color == 1).ToList(), oldDifficulty.Notes.Where(x => x.Color == 1).ToList(), CollectionType.Notes),
+            .. GenerateObjectsDiff(newDifficulty.Bombs, oldDifficulty.Bombs, CollectionType.Bombs),
+            .. GenerateObjectsDiff(newDifficulty.Walls, oldDifficulty.Walls, CollectionType.Walls),
+            .. GenerateObjectsDiff(newDifficulty.Arcs.Where(x => x.Color == 0).ToList(), oldDifficulty.Arcs.Where(x => x.Color == 0).ToList(), CollectionType.Arcs),
+            .. GenerateObjectsDiff(newDifficulty.Arcs.Where(x => x.Color == 1).ToList(), oldDifficulty.Arcs.Where(x => x.Color == 1).ToList(), CollectionType.Arcs),
+            .. GenerateObjectsDiff(newDifficulty.Chains.Where(x => x.Color == 0).ToList(), oldDifficulty.Chains.Where(x => x.Color == 0).ToList(), CollectionType.Chains),
+            .. GenerateObjectsDiff(newDifficulty.Chains.Where(x => x.Color == 1).ToList(), oldDifficulty.Chains.Where(x => x.Color == 1).ToList(), CollectionType.Chains),
+            .. GenerateObjectsDiff(newDifficulty.Lights, oldDifficulty.Lights, CollectionType.Lights),
+            .. GenerateObjectsDiff(newDifficulty.colorBoostBeatmapEvents, oldDifficulty.colorBoostBeatmapEvents, CollectionType.ColorBoostBeatmapEvents),
+            .. GenerateObjectsDiff(newDifficulty.lightColorEventBoxGroups, oldDifficulty.lightColorEventBoxGroups, CollectionType.LightColorEventBoxGroups),
+            .. GenerateObjectsDiff(newDifficulty.lightRotationEventBoxGroups, oldDifficulty.lightRotationEventBoxGroups, CollectionType.LightRotationEventBoxGroups),
+            .. GenerateObjectsDiff(newDifficulty.lightTranslationEventBoxGroups, oldDifficulty.lightTranslationEventBoxGroups, CollectionType.LightTranslationEventBoxGroups),
+        ];
+
+        private static List<DiffEntry> GenerateObjectsDiff<T>(List<T> newObjects, List<T> oldObjects, CollectionType collectionType) where T : BeatmapObject
         {
-            if (maxDegreesOfParallelism != null) MaxDegreesOfParallelism = maxDegreesOfParallelism.Value;
-        }
-
-        public static MapDiff GenerateFullDiff()
-        {
-            return new(new(), new());
-        }
-
-        public static List<DiffEntry> GenerateSongInfoDiff()
-        {
-            return new();
-        }
-
-        public static List<DiffEntry> GenerateDifficultyDiff(DifficultyV3 newDifficulty, DifficultyV3 oldDifficulty)
-        {
-            List<DiffEntry> diffEntries = new();
-
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.bpmEvents.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.bpmEvents.ConvertAll(obj => obj as BeatmapObject), CollectionType.BpmEvents));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Rotations.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Rotations.ConvertAll(obj => obj as BeatmapObject), CollectionType.Rotations));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Notes.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Notes.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Notes));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Notes.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Notes.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Notes));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Bombs.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Bombs.ConvertAll(obj => obj as BeatmapObject), CollectionType.Bombs));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Walls.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Walls.ConvertAll(obj => obj as BeatmapObject), CollectionType.Walls));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Arcs.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Arcs.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Arcs));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Arcs.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Arcs.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Arcs));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Chains.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Chains.Where(x => x.Color == 0).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Chains));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Chains.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Chains.Where(x => x.Color == 1).ToList().ConvertAll(obj => obj as BeatmapObject), CollectionType.Chains));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.Lights.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.Lights.ConvertAll(obj => obj as BeatmapObject), CollectionType.Lights));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.colorBoostBeatmapEvents.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.colorBoostBeatmapEvents.ConvertAll(obj => obj as BeatmapObject), CollectionType.ColorBoostBeatmapEvents));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.lightColorEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.lightColorEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), CollectionType.LightColorEventBoxGroups));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.lightRotationEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.lightRotationEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), CollectionType.LightRotationEventBoxGroups));
-            diffEntries.AddRange(GenerateObjectsDiff(newDifficulty.lightTranslationEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), oldDifficulty.lightTranslationEventBoxGroups.ConvertAll(obj => obj as BeatmapObject), CollectionType.LightTranslationEventBoxGroups));
-
-            return diffEntries;
-        }
-
-        private static List<DiffEntry> GenerateObjectsDiff(List<BeatmapObject> newObjects, List<BeatmapObject> oldObjects, CollectionType collectionType)
-        {
-            List<DiffEntry> diffEntries = new();
-            List<(BeatmapObject obj, bool stillExists)> oldObjsChecked = oldObjects.ConvertAll(obj => (obj, false));
+            List<DiffEntry> diffEntries = [];
+            ValueRemover<T> oldObjsChecked = new(oldObjects, stackalloc IntPtr[oldObjects.Count]);
+            ObjectMatcher<T> oldMatcher = new(oldObjects);
 
             // checking if new notes have a match in old notes
-            Parallel.ForEach(newObjects, new ParallelOptions { MaxDegreeOfParallelism = MaxDegreesOfParallelism }, obj =>
+            foreach(var obj in newObjects)
             {
-                var matches = CheckMatches(obj, oldObjects);
+                (int foundIndex, bool? isInexact) = oldMatcher.CheckMatches(obj);
 
-                if (matches.list.Count() > 0)
+                if (foundIndex is not -1)
                 {
+                    // Mark note as checked
+                    oldObjsChecked.Remove(foundIndex);
 
-                    foreach (var match in matches.list)
-                    {
-                        int index = oldObjsChecked.FindIndex(x => !x.stillExists && match.Equals(x.obj));
-                        if (index != -1) oldObjsChecked[index] = (match, true);
-                    }
-
-                    if (matches.isInexact == true)
+                    if (isInexact.HasValue && isInexact.Value)
                     {
                         // handling inexact matches
                         diffEntries.Add(new DiffEntry(DiffType.Modified, obj, collectionType));
@@ -85,60 +61,121 @@ namespace BSMapDiffGenerator
                     // adding new notes
                     diffEntries.Add(new DiffEntry(DiffType.Added, obj, collectionType));
                 }
-            });
+            }
 
             // adding removed notes if nothing is on their beat
-            Parallel.ForEach(oldObjsChecked.Where(x => !x.stillExists), new ParallelOptions { MaxDegreeOfParallelism = MaxDegreesOfParallelism }, obj =>
+            if(oldObjsChecked.Count > 0)
             {
-                if (CheckMatches(obj.obj, newObjects).list.Count() > 0)
+                ObjectMatcher<T> newMatcher = new(newObjects);
+                foreach(BeatmapObject obj in oldObjsChecked.Enumerate())
                 {
-                    diffEntries.Add(new DiffEntry(DiffType.Modified, obj.obj, collectionType));
-                } else
-                {
-                    diffEntries.Add(new DiffEntry(DiffType.Removed, obj.obj, collectionType));
+                    if (newMatcher.CheckMatches(obj).found is not -1)
+                    {
+                        diffEntries.Add(new DiffEntry(DiffType.Modified, obj, collectionType));
+                    } 
+                    else
+                    {
+                        diffEntries.Add(new DiffEntry(DiffType.Removed, obj, collectionType));
+                    }
                 }
-            });
+            }
 
             return diffEntries;
         }
 
-        private static (List<BeatmapObject> list, bool? isInexact) CheckMatches(BeatmapObject obj, List<BeatmapObject> oldObjects)
+        private readonly ref struct ObjectMatcher<T> where T : BeatmapObject
         {
-            var exactMatches = oldObjects.Where(x => obj.Equals(x)).ToList();
+            readonly Dictionary<BeatmapObject, int> oldObjHashSet;
+            readonly Dictionary<float, int>? customEq;
 
-            if (exactMatches.Count() > 0)
+            public ObjectMatcher(List<T> oldObjects)
             {
-                return (exactMatches, false);
-            }
-
-            if (obj is BeatmapGridObject gObj)
-            {
-                var matches = oldObjects.OfType<BeatmapGridObject>().Where(x => gObj.Beats.Equals(x.Beats)).ToList();
-
-                if (matches.Count > 0)
+                oldObjHashSet = new(oldObjects.Count);
+                for (int i = 0; i < oldObjects.Count; i++)
                 {
-                    return (matches.ConvertAll(obj => obj as BeatmapObject), true);
-                }
-                else
-                {
-                    return (matches.ConvertAll(obj => obj as BeatmapObject), null);
-                }
-            }
-            else if (obj is BpmEvent bObj)
-            {
-                var matches = oldObjects.OfType<BpmEvent>().Where(x => bObj.Beats.Equals(x.Beats)).ToList();
-
-                if (matches.Count > 0)
-                {
-                    return (matches.ConvertAll(obj => obj as BeatmapObject), true);
-                }
-                else
-                {
-                    return (matches.ConvertAll(obj => obj as BeatmapObject), null);
+                    oldObjHashSet.Add(oldObjects[i], i);
+                    if(typeof(T) == typeof(BpmEvent) || typeof(T) == typeof(BeatmapGridObject))
+                    {
+                        customEq ??= new(oldObjects.Count);
+                        customEq[oldObjects[i].Beats] = i;
+                    }
                 }
             }
 
-            return (exactMatches, null);
+            public (int found, bool? isInexact) CheckMatches(BeatmapObject obj)
+            {
+                if (oldObjHashSet.TryGetValue(obj, out int oldObj))
+                {
+                    return (oldObj, false);
+                }
+
+                if(customEq is not null)
+                {
+                    return customEq.TryGetValue(obj.Beats, out int oldT) ? (oldT, true) : (-1, null);
+                }
+
+                return (-1, null);
+            }
         }
+
+        private ref struct ValueRemover<T> where T : class
+        {
+            private readonly Span<T?> items;
+
+            public int Count { get; private set; }
+
+            public ValueRemover(List<T> oldList, Span<IntPtr> buffer)
+            {
+                if(buffer.Length > 0)
+                {
+                    items = MemoryMarshal.CreateSpan(ref Unsafe.As<IntPtr, T?>(ref buffer[0]), buffer.Length);
+#pragma warning disable CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types. Ok here, because its just a CopyTo ¯\_(ツ)_/¯
+                    CollectionsMarshal.AsSpan(oldList).CopyTo(items);
+#pragma warning restore CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
+                }
+            }
+
+            public void Remove(int index)
+            {
+                items[index] = null;
+                Count--;
+            }
+
+            public readonly ValueRemoveEnumerator Enumerate() => new ValueRemoveEnumerator(this);
+
+            public ref struct ValueRemoveEnumerator(ValueRemover<T> removerP)
+            {
+                private ValueRemover<T> remover = removerP;
+                private int current = -1;
+                public T Current { get; private set; }
+
+                public readonly ValueRemoveEnumerator GetEnumerator() => this;
+
+                public bool MoveNext()
+                {
+                    do
+                    {
+                       current++;
+#pragma warning disable CS8601 // Possible null reference assignment. Ok here, because its checked afterwards
+                        Current = remover.items[current];
+#pragma warning restore CS8601 // Possible null reference assignment.
+                    } while(current < remover.items.Length && Current is null);
+                    return current < remover.items.Length;
+                }
+
+            }
+        }
+
+#if NETSTANDARD2_0_OR_GREATER
+        public static class CollectionsMarshal
+        {
+            static class ArrayAccessor<T>
+            {
+                private static readonly FieldInfo fInfo = typeof(List<T>).GetField("_items", BindingFlags.Instance | BindingFlags.NonPublic);
+                public static T[] GetItems(List<T> list) => (T[])fInfo.GetValue(list);
+            }
+            public static Span<T> AsSpan<T>(List<T> list) => list is null ? default : new Span<T>(ArrayAccessor<T>.GetItems(list), 0, list.Count);
+        }
+#endif
     }
 }
