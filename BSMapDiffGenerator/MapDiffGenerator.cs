@@ -47,8 +47,15 @@ namespace BSMapDiffGenerator
 
                 if (foundIndex is not -1)
                 {
-                    // Mark note as checked
-                    oldObjsChecked.Remove(foundIndex);
+                    // If there are multiple notes on that beat and we matched inexactly, we always find the first one. But we need to check all, so we just loop until we maybe find one on the correct beat
+                    while(foundIndex < oldObjsChecked.Items.Length && oldObjsChecked.Items[foundIndex] is null)
+                        foundIndex++;
+
+                    if(foundIndex < oldObjsChecked.Items.Length && oldObjsChecked.Items[foundIndex]!.Beats == obj.Beats)
+                    {
+                        // If yes we mark it as checked
+                        oldObjsChecked.Remove(foundIndex);
+                    }
 
                     if (isInexact.HasValue && isInexact.Value)
                     {
@@ -63,20 +70,12 @@ namespace BSMapDiffGenerator
                 }
             }
 
-            // adding removed notes if nothing is on their beat
+            // adding removed notes
             if(oldObjsChecked.Count > 0)
             {
-                ObjectMatcher<T> newMatcher = new(newObjects);
                 foreach(BeatmapObject obj in oldObjsChecked.Enumerate())
                 {
-                    if (newMatcher.CheckMatches(obj).found is not -1)
-                    {
-                        diffEntries.Add(new DiffEntry(DiffType.Modified, obj, collectionType));
-                    } 
-                    else
-                    {
-                        diffEntries.Add(new DiffEntry(DiffType.Removed, obj, collectionType));
-                    }
+                    diffEntries.Add(new DiffEntry(DiffType.Removed, obj, collectionType));
                 }
             }
 
@@ -94,10 +93,10 @@ namespace BSMapDiffGenerator
                 for (int i = 0; i < oldObjects.Count; i++)
                 {
                     oldObjHashSet.Add(oldObjects[i], i);
-                    if(typeof(T) == typeof(BpmEvent) || typeof(T) == typeof(BeatmapGridObject))
+                    if(oldObjects[0] is BpmEvent or BeatmapGridObject)
                     {
                         customEq ??= new(oldObjects.Count);
-                        customEq[oldObjects[i].Beats] = i;
+                        customEq.TryAdd(oldObjects[i].Beats, i);
                     }
                 }
             }
@@ -120,7 +119,7 @@ namespace BSMapDiffGenerator
 
         private ref struct ValueRemover<T> where T : class
         {
-            private readonly Span<T?> items;
+            public readonly Span<T?> Items;
 
             public int Count { get; private set; }
 
@@ -128,16 +127,17 @@ namespace BSMapDiffGenerator
             {
                 if(buffer.Length > 0)
                 {
-                    items = MemoryMarshal.CreateSpan(ref Unsafe.As<IntPtr, T?>(ref buffer[0]), buffer.Length);
+                    Items = MemoryMarshal.CreateSpan(ref Unsafe.As<IntPtr, T?>(ref buffer[0]), buffer.Length);
 #pragma warning disable CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types. Ok here, because its just a CopyTo ¯\_(ツ)_/¯
-                    CollectionsMarshal.AsSpan(oldList).CopyTo(items);
+                    CollectionsMarshal.AsSpan(oldList).CopyTo(Items);
 #pragma warning restore CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
                 }
+                Count = Items.Length;
             }
 
             public void Remove(int index)
             {
-                items[index] = null;
+                Items[index] = null;
                 Count--;
             }
 
@@ -146,7 +146,7 @@ namespace BSMapDiffGenerator
             public ref struct ValueRemoveEnumerator(ValueRemover<T> removerP)
             {
                 private ValueRemover<T> remover = removerP;
-                private int current = -1;
+                private int currentIndex;
                 public T Current { get; private set; }
 
                 public readonly ValueRemoveEnumerator GetEnumerator() => this;
@@ -155,12 +155,11 @@ namespace BSMapDiffGenerator
                 {
                     do
                     {
-                       current++;
 #pragma warning disable CS8601 // Possible null reference assignment. Ok here, because its checked afterwards
-                        Current = remover.items[current];
+                        Current = remover.Items[currentIndex++];
 #pragma warning restore CS8601 // Possible null reference assignment.
-                    } while(current < remover.items.Length && Current is null);
-                    return current < remover.items.Length;
+                    } while(currentIndex < remover.Items.Length && Current is null);
+                    return currentIndex < remover.Items.Length;
                 }
 
             }

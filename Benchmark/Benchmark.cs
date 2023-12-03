@@ -1,18 +1,9 @@
 ﻿using beatleader_parser;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Disassemblers;
 using BenchmarkDotNet.Jobs;
 using BSMapDiffGenerator;
-using Microsoft.Diagnostics.Tracing.AutomatedAnalysis;
 using Parser.Map;
-using Parser.Map.Difficulty.V3.Base;
 using Parser.Map.Difficulty.V3.Grid;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Benchmark
 {
