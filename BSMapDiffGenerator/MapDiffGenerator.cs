@@ -92,11 +92,13 @@ namespace BSMapDiffGenerator
                 oldObjHashSet = new(oldObjects.Count);
                 for (int i = 0; i < oldObjects.Count; i++)
                 {
-                    oldObjHashSet.Add(oldObjects[i], i);
-                    if(oldObjects[0] is BpmEvent or BeatmapGridObject)
-                    {
-                        customEq ??= new(oldObjects.Count);
-                        customEq.TryAdd(oldObjects[i].Beats, i);
+                    if (!oldObjHashSet.ContainsKey(oldObjects[i])) {
+                        oldObjHashSet.Add(oldObjects[i], i);
+                        if(oldObjects[0] is BpmEvent or BeatmapGridObject)
+                        {
+                            customEq ??= new(oldObjects.Count);
+                            customEq.TryAdd(oldObjects[i].Beats, i);
+                        }
                     }
                 }
             }
